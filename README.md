@@ -1,7 +1,7 @@
 # Rust-Virtual-Pet
 A simple game about taking care of your pet written in Rust.
 
-# Pet Status
+# Pet's Status
 ![image](https://github.com/user-attachments/assets/5e751d61-fac6-4f4f-ba16-82022ed54038)
 
 # Feed and play with your pet
