@@ -1,8 +1,11 @@
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
 
+#[derive(Serialize, Deserialize)]
 struct Pet {
     name: String,
     hunger: i32,
@@ -55,7 +58,7 @@ impl Pet {
         println!("Mood:      {}", self.get_mood());
     }
 
-      fn display_stat(&self, value: i32) -> String {
+    fn display_stat(&self, value: i32) -> String {
         let bars = "█".repeat((value / 10) as usize);
         let spaces = "░".repeat((10 - (value / 10)) as usize);
         format!("{}{} ({})", bars, spaces, value)
@@ -96,47 +99,176 @@ impl Pet {
             }
         }
     }
+
+    fn save_to_file(&self) -> io::Result<()> {
+        let save_data = serde_json::to_string(&self)?;
+        fs::write(format!("{}.json", self.name), save_data)?;
+        println!("Game saved successfully!");
+        Ok(())
+    }
+
+    fn load_from_file(name: &str) -> io::Result<Pet> {
+        let save_data = fs::read_to_string(format!("{}.json", name))?;
+        let pet: Pet = serde_json::from_str(&save_data)?;
+        Ok(pet)
+    }
+	
+	fn delete_save(&self) -> io::Result<()> {
+		let file_path = format!("{}.json", self.name);
+		if fs::metadata(&file_path).is_ok() {
+		fs::remove_file(&file_path)?;
+		println!("Save file for {} deleted successfully!", self.name);
+		} else{
+		println!("No save file exists for {}", self.name);
+		}
+		Ok(())
+	}
 }
 
-fn main() {
-    println!("Welcome to Virtual Pet!");
-    println!("(^_^)");
+fn display_title() {
+    println!("\n==========================================");
+    println!("    VIRTUAL PET GAME");
+    println!("         ╭━━━━ ");
+    println!("         ┃^ω^┃ ");
+    println!("         ╰━━━━ ");
+    println!("==========================================\n");
+}
+
+fn display_main_menu() -> String {
+    println!("\nMAIN MENU");
+    println!("1. New Game");
+    println!("2. Load Game");
+    println!("3. Delete Save");
+	println!("4. Exit");
+    
+    print!("Choose an option (1-4): ");
+    io::stdout().flush().unwrap();
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input.trim().to_string()
+}
+
+fn game_menu(pet: &mut Pet) -> bool {
+    pet.status();
+    pet.random_event();
+    
+    println!("\nWhat would you like to do?");
+    println!("1. Feed pet    (*)");
+    println!("2. Play with pet (^)");
+    println!("3. Let pet sleep (z)");
+    println!("4. Save game");
+    println!("5. Delete save");
+	println!("6. Return to main menu");
+    
+    print!("Choose an option (1-6): ");
+    io::stdout().flush().unwrap();
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    
+    match input.trim() {
+        "1" => pet.feed(),
+        "2" => pet.play(),
+        "3" => pet.sleep(),
+        "4" => {
+            if let Err(e) = pet.save_to_file() {
+                println!("Error saving game: {}", e);
+            }
+        }
+		"5" => {
+			println!("Are you sure you want to delete this save file? (y/n)");
+			let mut confirm = String::new();
+			io::stdin().read_line(&mut confirm).unwrap();
+			if confirm.trim().to_lowercase() == "y" {
+				if let Err(e) = pet.delete_save() {
+					println!("Error deleting save: {}", e);
+				}
+			}
+		}
+        "6" => return false,
+        _ => println!("Invalid option! Please try again."),
+    }
+    
+    thread::sleep(Duration::from_secs(1));
+    true
+}
+
+fn create_new_pet() -> Pet {
     print!("Enter your pet's name: ");
     io::stdout().flush().unwrap();
     
     let mut name = String::new();
     io::stdin().read_line(&mut name).unwrap();
-    let name = name.trim().to_string();
+    Pet::new(name.trim().to_string())
+}
+
+fn load_game() -> Option<Pet> {
+    print!("Enter the name of your pet to load: ");
+    io::stdout().flush().unwrap();
     
-    let mut pet = Pet::new(name);
+    let mut name = String::new();
+    io::stdin().read_line(&mut name).unwrap();
+    let name = name.trim();
+    
+    match Pet::load_from_file(name) {
+        Ok(pet) => {
+            println!("Game loaded successfully!");
+            Some(pet)
+        }
+        Err(_) => {
+            println!("No save file found for pet named '{}'", name);
+            None
+        }
+    }
+}
+
+fn delete_save_file() {
+	print!("Enter the name of the pet save to delete: ");
+	io::stdout().flush().unwrap();
+	
+	let mut name = String::new();
+	io::stdin().read_line(&mut name).unwrap();
+	let name = name.trim();
+	
+	println!("Are you sure you want to delete the save file for {}? (y/n)", name);
+	let mut confirm = String::new();
+	io::stdin().read_line(&mut confirm).unwrap();
+	
+	if confirm.trim().to_lowercase() == "y" {
+		let file_path = format!("{}.json", name);
+		if fs::metadata(&file_path).is_ok() {
+			if let Err(e) = fs::remove_file(&file_path) {
+				println!("Error deleting save file: {}", e);
+			} else {
+				println!("Save file for {} deleted successfully!", name);
+			}
+		} else {
+			println!("No save file exists for {}", name);
+		}
+	}
+}
+
+fn main() {
+    display_title();
     
     loop {
-        pet.status();
-        pet.random_event();
-        
-        println!("\nWhat would you like to do?");
-        println!("1. Feed pet    (*)");
-        println!("2. Play with pet (^)");
-        println!("3. Let pet sleep (z)");
-        println!("4. Exit");
-        
-        print!("Choose an option (1-4): ");
-        io::stdout().flush().unwrap();
-        
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
-        
-        match input.trim() {
-            "1" => pet.feed(),
-            "2" => pet.play(),
-            "3" => pet.sleep(),
+        match display_main_menu().as_str() {
+            "1" => {
+                let mut pet = create_new_pet();
+                while game_menu(&mut pet) {}
+            }
+            "2" => {
+                if let Some(mut pet) = load_game() {
+                    while game_menu(&mut pet) {}
+                }
+            }
+			"3" => delete_save_file(),
             "4" => {
-                println!("Goodbye! Take care of {} (^_^)/", pet.name);
+                println!("Thanks for playing! Goodbye! (^_^)/");
                 break;
             }
             _ => println!("Invalid option! Please try again."),
         }
-        
-        thread::sleep(Duration::from_secs(1));
     }
 }
