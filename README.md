@@ -10,4 +10,6 @@ A simple game about taking care of your pet written in Rust.
 # Feed and play with your pet
 ![image](https://github.com/user-attachments/assets/13858f8a-7b72-40b0-9ba6-1f235204dc1d)
 
+# Pet Hangry (>_<)
+![image](https://github.com/user-attachments/assets/f724ef28-0cb5-4690-bb61-1defdfadeb48)
 
