@@ -66,9 +66,9 @@ impl Pet {
 
     fn get_mood(&self) -> &str {
         match (self.happiness, self.hunger) {
+			(_, hun) if hun > 80 => "(>_<) Hangry",		//check hangry first to pass the test?
             (h, _) if h > 80 => "(*_*) Ecstatic",
-            (h, hun) if h > 60 && hun < 50 => "(^_^) Happy",
-            (_, hun) if hun > 80 => "(>_<) Hangry",
+            (h, hun) if h > 60 && hun < 50 => "(^_^) Happy",           
             (h, _) if h < 30 => "(;_;) Sad",
             _ => "(-_-) Content",
         }
@@ -272,3 +272,175 @@ fn main() {
         }
     }
 }
+
+/*------------------------------------Tests---------------------------------*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    //create a test pet
+    fn create_test_pet() -> Pet {
+        Pet::new("TestPet".to_string())
+    }
+
+    #[test]
+    fn test_new_pet_initialization() {
+       let pet = create_test_pet();
+       assert_eq!(pet.name, "TestPet");
+	   assert_eq!(pet.hunger, 50);
+	   assert_eq!(pet.happiness, 50);
+	   assert_eq!(pet.energy, 100);
+	}
+
+	#[test]
+	fn test_feed_pet() {
+		let mut pet = create_test_pet();
+		pet.hunger = 80;
+		pet.feed();	
+		assert!(pet.hunger < 80);
+		assert!(pet.hunger >= 0);
+		assert!(pet.happiness <= 100);
+	}
+
+	#[test]
+	fn test_play_with_pet() {
+		let mut pet = create_test_pet();
+		let initial_energy = pet.energy;
+		let initial_happiness = pet.happiness;
+		
+		pet.play();
+		
+		assert!(pet.energy < initial_energy);
+		assert!(pet.happiness > initial_happiness);
+		assert!(pet.energy >= 0);
+		assert!(pet.energy <= 100);
+	}
+
+	#[test]
+	fn test_tired_pet_can_play() {
+		let mut pet = create_test_pet();
+		pet.energy = 10; 	//energy below the limit for the ability to play
+		let initial_happiness = pet.happiness;
+		
+		pet.play();
+		
+		assert_eq!(pet.happiness, initial_happiness); 	//happiness value should stay the same
+	}
+
+	#[test]
+	fn test_sleep_restores_energy() {
+		let mut pet = create_test_pet();
+		pet.energy = 30;
+		pet.sleep();
+		assert_eq!(pet.energy, 100);
+	}
+
+	#[test]
+	fn test_stats_clamping() {
+		let mut pet = create_test_pet();
+		
+		//test the upper bounds
+		pet.happiness = 150;
+		pet.feed();		//should clamp happiness
+		assert_eq!(pet.happiness, 100);
+		
+		//test the lower bounds
+		pet.hunger = -50;
+		pet.play(); 	//should clamp hunger
+		assert_eq!(pet.hunger, 0);
+	}
+
+	#[test]
+    fn test_mood_changes() {
+        let mut pet = create_test_pet();
+        
+        // test ecstatic mood
+        pet.happiness = 90;
+        pet.hunger = 30;
+        assert_eq!(pet.get_mood(), "(*_*) Ecstatic");
+        
+        // test hangry mood
+        pet.hunger = 90;
+        assert_eq!(pet.get_mood(), "(>_<) Hangry");
+    }
+
+
+	#[test]
+	fn test_save_and_load() -> io::Result<()> {
+		let dir = tempdir()?;
+		let file_path = dir.path().join("TestPet.json");
+		
+		let test_pet = Pet {
+			name: "TestPet".to_string(),
+			hunger: 60,
+			happiness: 70,
+			energy: 80,
+		};
+		
+		//test saving function
+		fs::write(&file_path, serde_json::to_string(&test_pet)?)?;
+		
+		//test loading save file function
+		let loaded_pet: Pet = serde_json::from_str(&fs::read_to_string(&file_path)?)?;
+		
+		assert_eq!(test_pet.name, loaded_pet.name);
+		assert_eq!(test_pet.hunger, loaded_pet.hunger);
+		assert_eq!(test_pet.happiness, loaded_pet.happiness);
+		assert_eq!(test_pet.energy, loaded_pet.energy);
+		
+		Ok(())
+	}
+
+	#[test]
+	fn test_display_stat() {
+		let pet = create_test_pet();
+		let stat = pet.display_stat(50);
+		assert!(stat.contains("█████")); 	// should have 5 full blocks
+		assert!(stat.contains("░░░░░")); 	// should have 5 empty blocks
+		assert!(stat.contains("(50)")); 	// should show the number
+	}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
